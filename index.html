@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Calcula el valor futuro de tus inversiones con interés compuesto. Visualiza el crecimiento año a año con aportaciones periódicas." />
+  <title>Calculadora de Interés Compuesto</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --accent: #7c3aed;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: -0.5px;
+    }
+    header p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      display: grid;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    input, select {
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      color: var(--text);
+      background: #fff;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    input.error { border-color: #ef4444; }
+
+    .error-msg {
+      font-size: 0.78rem;
+      color: #ef4444;
+      min-height: 16px;
+    }
+
+    .suffix {
+      position: relative;
+    }
+    .suffix input { padding-right: 36px; }
+    .suffix span {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      font-size: 0.9rem;
+      pointer-events: none;
+    }
+
+    button#calcBtn {
+      margin-top: 8px;
+      width: 100%;
+      padding: 13px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    button#calcBtn:hover { background: var(--primary-dark); }
+    button#calcBtn:active { transform: scale(0.99); }
+
+    .results {
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .results.visible { display: flex; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 20px 18px;
+      border-left: 4px solid var(--primary);
+    }
+    .kpi:nth-child(2) { border-color: var(--success); }
+    .kpi:nth-child(3) { border-color: var(--accent); }
+
+    .kpi .label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .kpi .value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--text);
+    }
+    .kpi:nth-child(1) .value { color: var(--primary); }
+    .kpi:nth-child(2) .value { color: var(--success); }
+    .kpi:nth-child(3) .value { color: var(--accent); }
+
+    .chart-wrap {
+      position: relative;
+      height: 320px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    thead th {
+      background: var(--bg);
+      padding: 10px 12px;
+      text-align: right;
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    thead th:first-child { text-align: left; }
+    tbody tr:hover { background: #f8fafc; }
+    tbody td {
+      padding: 9px 12px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td:first-child { text-align: left; font-weight: 600; }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    footer a { color: var(--primary); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 Calculadora de Interés Compuesto</h1>
+  <p>Descubre cómo crece tu dinero con el tiempo</p>
+</header>
+
+<main class="container">
+
+  <!-- FORM -->
+  <section class="card" aria-labelledby="form-title">
+    <h2 id="form-title">Parámetros de la inversión</h2>
+    <div class="grid">
+
+      <div class="field">
+        <label for="capital">Capital inicial</label>
+        <div class="suffix">
+          <input type="number" id="capital" value="10000" min="0" step="100" />
+          <span>€</span>
+        </div>
+        <span class="error-msg" id="err-capital"></span>
+      </div>
+
+      <div class="field">
+        <label for="pmt">Aportación mensual</label>
+        <div class="suffix">
+          <input type="number" id="pmt" value="200" min="0" step="50" />
+          <span>€</span>
+        </div>
+        <span class="error-msg" id="err-pmt"></span>
+      </div>
+
+      <div class="field">
+        <label for="rate">Tipo de interés anual</label>
+        <div class="suffix">
+          <input type="number" id="rate" value="7" min="0" max="100" step="0.1" />
+          <span>%</span>
+        </div>
+        <span class="error-msg" id="err-rate"></span>
+      </div>
+
+      <div class="field">
+        <label for="freq">Frecuencia de capitalización</label>
+        <select id="freq">
+          <option value="1" selected>Anual (1×/año)</option>
+          <option value="4">Trimestral (4×/año)</option>
+          <option value="12">Mensual (12×/año)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="years">Número de años</label>
+        <div class="suffix">
+          <input type="number" id="years" value="20" min="1" max="100" step="1" />
+          <span>años</span>
+        </div>
+        <span class="error-msg" id="err-years"></span>
+      </div>
+
+    </div>
+    <button id="calcBtn" onclick="calculate()">Calcular →</button>
+  </section>
+
+  <!-- RESULTS -->
+  <div class="results" id="results">
+
+    <section class="card" aria-labelledby="kpi-title">
+      <h2 id="kpi-title">Resultado</h2>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Valor final acumulado</div>
+          <div class="value" id="kpi-fv">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Total aportado</div>
+          <div class="value" id="kpi-contributed">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Intereses generados</div>
+          <div class="value" id="kpi-interest">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="chart-title">
+      <h2 id="chart-title">Evolución del capital</h2>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="table-title">
+      <h2 id="table-title">Desglose año a año</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Año</th>
+              <th>Capital</th>
+              <th>Aportado</th>
+              <th>Intereses</th>
+              <th>Valor total</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <p>Calculadora de Interés Compuesto · Solo uso orientativo · 
+    <a href="https://pages.github.com/" target="_blank" rel="noopener">Desplegable en GitHub Pages</a>
+  </p>
+</footer>
+
+<script>
+  const fmt = v => v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+
+  let chartInstance = null;
+
+  function validate() {
+    const fields = [
+      { id: 'capital', errId: 'err-capital', min: 0, label: 'Capital' },
+      { id: 'pmt',     errId: 'err-pmt',     min: 0, label: 'Aportación' },
+      { id: 'rate',    errId: 'err-rate',    min: 0, max: 100, label: 'Interés' },
+      { id: 'years',   errId: 'err-years',   min: 1, max: 100, label: 'Años' },
+    ];
+    let ok = true;
+    fields.forEach(f => {
+      const el = document.getElementById(f.id);
+      const errEl = document.getElementById(f.errId);
+      const v = parseFloat(el.value);
+      el.classList.remove('error');
+      errEl.textContent = '';
+      if (el.value.trim() === '' || isNaN(v)) {
+        errEl.textContent = 'Campo obligatorio';
+        el.classList.add('error'); ok = false;
+      } else if (v < f.min) {
+        errEl.textContent = `Mínimo: ${f.min}`;
+        el.classList.add('error'); ok = false;
+      } else if (f.max !== undefined && v > f.max) {
+        errEl.textContent = `Máximo: ${f.max}`;
+        el.classList.add('error'); ok = false;
+      }
+    });
+    return ok;
+  }
+
+  function calculate() {
+    if (!validate()) return;
+
+    const P   = parseFloat(document.getElementById('capital').value);
+    const PMT = parseFloat(document.getElementById('pmt').value);
+    const r   = parseFloat(document.getElementById('rate').value) / 100;
+    const n   = parseInt(document.getElementById('freq').value);
+    const t   = parseInt(document.getElementById('years').value);
+
+    const rn = r / n;
+    const rows = [];
+    let prevFV = P;
+
+    for (let yr = 1; yr <= t; yr++) {
+      const nt = n * yr;
+      let fv;
+      if (r === 0) {
+        fv = P + PMT * 12 * yr;
+      } else {
+        const compound = Math.pow(1 + rn, nt);
+        fv = P * compound + PMT * ((compound - 1) / rn);
+      }
+      const contributed = P + PMT * 12 * yr;
+      const interest = fv - contributed;
+      const yearlyGain = fv - prevFV;
+      rows.push({ yr, fv, contributed, interest, yearlyGain });
+      prevFV = fv;
+    }
+
+    const last = rows[rows.length - 1];
+
+    // KPIs
+    document.getElementById('kpi-fv').textContent          = fmt(last.fv);
+    document.getElementById('kpi-contributed').textContent = fmt(last.contributed);
+    document.getElementById('kpi-interest').textContent    = fmt(last.interest);
+
+    // Table
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = rows.map(row => `
+      <tr>
+        <td>Año ${row.yr}</td>
+        <td>${fmt(row.contributed - P)}</td>
+        <td>${fmt(row.contributed)}</td>
+        <td>${fmt(row.interest)}</td>
+        <td><strong>${fmt(row.fv)}</strong></td>
+      </tr>
+    `).join('');
+
+    // Chart
+    const labels     = rows.map(r => `Año ${r.yr}`);
+    const fvData     = rows.map(r => +r.fv.toFixed(2));
+    const contribData= rows.map(r => +r.contributed.toFixed(2));
+
+    if (chartInstance) chartInstance.destroy();
+    const ctx = document.getElementById('chart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Valor total acumulado',
+            data: fvData,
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37,99,235,0.1)',
+            fill: true,
+            tension: 0.3,
+            pointRadius: t <= 30 ? 4 : 0,
+            pointHoverRadius: 6,
+          },
+          {
+            label: 'Total aportado',
+            data: contribData,
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22,163,74,0.07)',
+            fill: true,
+            tension: 0.3,
+            borderDash: [5, 4],
+            pointRadius: t <= 30 ? 4 : 0,
+            pointHoverRadius: 6,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 20, font: { size: 13 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('es-ES', { maximumFractionDigits: 0 })} €`
+            }
+          }
+        },
+        scales: {
+          y: {
+            ticks: {
+              callback: v => v.toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €'
+            },
+            grid: { color: '#f1f5f9' }
+          },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+
+    document.getElementById('results').classList.add('visible');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Calculate on load with default values
+  window.addEventListener('load', calculate);
+</script>
+
+</body>
+</html>
